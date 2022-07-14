@@ -7,6 +7,7 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.example.account.domain.User;
 import com.example.account.repository.UserRepository;
+import com.example.account.web.util.ResponseUtil;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -41,5 +43,11 @@ public class UserResource {
 		log.debug("REST request to get all User");
 
 		return userRepository.findAll();
+	}
+
+	@GetMapping("/users/{id}")
+	public ResponseEntity<User> getUser(@PathVariable Long id) {
+		log.debug("REST request to get User : {}", id);
+		return ResponseUtil.wrapOrNotFound(userRepository.findById(id));
 	}
 }

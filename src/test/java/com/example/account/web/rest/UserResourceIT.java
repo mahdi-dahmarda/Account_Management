@@ -37,6 +37,9 @@ class UserResourceIT {
 
 	private static final LocalDate DEFAULT_DOB = LocalDate.ofEpochDay(0L);
 
+	private static final String ENTITY_API_URL = "/api/users";
+	private static final String ENTITY_API_URL_ID = ENTITY_API_URL + "/{id}";
+
 	private User user;
 
 	@Autowired
@@ -83,7 +86,7 @@ class UserResourceIT {
 		user.setEmail(DEFAULT_EMAIL);
 		user.setDob(DEFAULT_DOB);
 
-		restUserMockMvc.perform(post("/api/users").contentType(MediaType.APPLICATION_JSON)
+		restUserMockMvc.perform(post(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON)
 				.content(TestUtil.convertObjectToJsonBytes(user))).andExpect(status().isCreated());
 
 		// Validate the User in the database
@@ -103,13 +106,30 @@ class UserResourceIT {
 		userRepository.saveAndFlush(user);
 
 		// Get all the users
-		restUserMockMvc.perform(get("/api/users").accept(MediaType.APPLICATION_JSON)).andExpect(status().isOk())
+		restUserMockMvc.perform(get(ENTITY_API_URL).accept(MediaType.APPLICATION_JSON)).andExpect(status().isOk())
 				.andExpect(content().contentType(MediaType.APPLICATION_JSON_VALUE))
 
 				.andExpect(jsonPath("$.[*].firstName").value(hasItem(DEFAULT_FIRSTNAME)))
 				.andExpect(jsonPath("$.[*].lastName").value(hasItem(DEFAULT_LASTNAME)))
 				.andExpect(jsonPath("$.[*].email").value(hasItem(DEFAULT_EMAIL)))
 				.andExpect(jsonPath("$.[*].dob").value(hasItem(DEFAULT_DOB.toString())));
+
+	}
+
+	@Test
+	@Transactional
+	void getUser() throws Exception {
+		// Initialize the database
+		userRepository.saveAndFlush(user);
+
+		// Get the user
+		restUserMockMvc.perform(get(ENTITY_API_URL_ID, user.getId())).andExpect(status().isOk())
+				.andExpect(content().contentType(MediaType.APPLICATION_JSON_VALUE))
+
+				.andExpect(jsonPath("$.firstName").value(DEFAULT_FIRSTNAME))
+				.andExpect(jsonPath("$.lastName").value(DEFAULT_LASTNAME))
+				.andExpect(jsonPath("$.email").value(DEFAULT_EMAIL))
+				.andExpect(jsonPath("$.dob").value(DEFAULT_DOB.toString()));
 
 	}
 
