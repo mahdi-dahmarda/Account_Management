@@ -2,6 +2,7 @@ package com.example.account.web.rest;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasItem;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -11,7 +12,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -32,8 +32,7 @@ import com.example.account.repository.UserRepository;
 @AutoConfigureMockMvc
 @SpringBootTest
 class UserResourceIT {
-	
-	
+
 	private static final String DEFAULT_FIRSTNAME = "Mahdi";
 	private static final String UPDATED_FIRSTNAME = "Ali";
 
@@ -44,7 +43,7 @@ class UserResourceIT {
 	private static final String UPDATED_EMAIL = "ali.ahmadi@gmail.com";
 
 	private static final LocalDate DEFAULT_DOB = LocalDate.ofEpochDay(0L);
-	 private static final LocalDate UPDATED_DOB = LocalDate.now(ZoneId.systemDefault());
+	private static final LocalDate UPDATED_DOB = LocalDate.now(ZoneId.systemDefault());
 
 	private static final String ENTITY_API_URL = "/api/users";
 	private static final String ENTITY_API_URL_ID = ENTITY_API_URL + "/{id}";
@@ -147,7 +146,7 @@ class UserResourceIT {
 	void updateUser() throws Exception {
 		// Initialize the database
 		userRepository.saveAndFlush(user);
-		
+
 		int databaseSizeBeforeUpdate = userRepository.findAll().size();
 
 		// Update the user
@@ -159,7 +158,7 @@ class UserResourceIT {
 		user.setLastName(UPDATED_LASTNAME);
 		user.setEmail(UPDATED_EMAIL);
 		user.setDob(UPDATED_DOB);
-		
+
 		restUserMockMvc.perform(put(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON)
 				.content(TestUtil.convertObjectToJsonBytes(user))).andExpect(status().isOk());
 
@@ -172,6 +171,22 @@ class UserResourceIT {
 			assertThat(testUser.getEmail()).isEqualTo(UPDATED_EMAIL);
 			assertThat(testUser.getDob()).isEqualTo(UPDATED_DOB);
 		});
+	}
+
+	@Test
+	@Transactional
+	void deleteUser() throws Exception {
+		// Initialize the database
+		userRepository.saveAndFlush(user);
+		
+		int databaseSizeBeforeDelete = userRepository.findAll().size();
+
+		// Delete the user
+		restUserMockMvc.perform(delete(ENTITY_API_URL_ID, user.getId()).accept(MediaType.APPLICATION_JSON))
+				.andExpect(status().isNoContent());
+
+		// Validate the database is empty
+		assertPersistedUsers(users -> assertThat(users).hasSize(databaseSizeBeforeDelete - 1));
 	}
 
 	private void assertPersistedUsers(Consumer<List<User>> userAssertion) {
