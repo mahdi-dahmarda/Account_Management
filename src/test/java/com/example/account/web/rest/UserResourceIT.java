@@ -4,11 +4,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasItem;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.Collections;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -29,13 +32,19 @@ import com.example.account.repository.UserRepository;
 @AutoConfigureMockMvc
 @SpringBootTest
 class UserResourceIT {
-	private static final String DEFAULT_EMAIL = "mahdi.dahmardah@gmail.com";
-
+	
+	
 	private static final String DEFAULT_FIRSTNAME = "Mahdi";
+	private static final String UPDATED_FIRSTNAME = "Ali";
 
 	private static final String DEFAULT_LASTNAME = "Dahmarda";
+	private static final String UPDATED_LASTNAME = "Ahmadi";
+
+	private static final String DEFAULT_EMAIL = "mahdi.dahmardah@gmail.com";
+	private static final String UPDATED_EMAIL = "ali.ahmadi@gmail.com";
 
 	private static final LocalDate DEFAULT_DOB = LocalDate.ofEpochDay(0L);
+	 private static final LocalDate UPDATED_DOB = LocalDate.now(ZoneId.systemDefault());
 
 	private static final String ENTITY_API_URL = "/api/users";
 	private static final String ENTITY_API_URL_ID = ENTITY_API_URL + "/{id}";
@@ -131,6 +140,38 @@ class UserResourceIT {
 				.andExpect(jsonPath("$.email").value(DEFAULT_EMAIL))
 				.andExpect(jsonPath("$.dob").value(DEFAULT_DOB.toString()));
 
+	}
+
+	@Test
+	@Transactional
+	void updateUser() throws Exception {
+		// Initialize the database
+		userRepository.saveAndFlush(user);
+		
+		int databaseSizeBeforeUpdate = userRepository.findAll().size();
+
+		// Update the user
+		User updatedUser = userRepository.findById(user.getId()).get();
+
+		User user = new User();
+		user.setId(updatedUser.getId());
+		user.setFirstName(UPDATED_FIRSTNAME);
+		user.setLastName(UPDATED_LASTNAME);
+		user.setEmail(UPDATED_EMAIL);
+		user.setDob(UPDATED_DOB);
+		
+		restUserMockMvc.perform(put(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON)
+				.content(TestUtil.convertObjectToJsonBytes(user))).andExpect(status().isOk());
+
+		// Validate the User in the database
+		assertPersistedUsers(users -> {
+			assertThat(users).hasSize(databaseSizeBeforeUpdate);
+			User testUser = users.stream().filter(usr -> usr.getId().equals(updatedUser.getId())).findFirst().get();
+			assertThat(testUser.getFirstName()).isEqualTo(UPDATED_FIRSTNAME);
+			assertThat(testUser.getLastName()).isEqualTo(UPDATED_LASTNAME);
+			assertThat(testUser.getEmail()).isEqualTo(UPDATED_EMAIL);
+			assertThat(testUser.getDob()).isEqualTo(UPDATED_DOB);
+		});
 	}
 
 	private void assertPersistedUsers(Consumer<List<User>> userAssertion) {
