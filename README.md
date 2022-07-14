@@ -57,7 +57,7 @@ Accept: application/json
 Content-Type: application/json
 ```
 
-### Delete a Todo Note Resource
+### Delete a User Resource
 ```
 DELETE /api/users/{userId}
 Accept: application/json
