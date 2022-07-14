@@ -6,7 +6,7 @@ REST APIs implemented using Spring Boot Maven Project
 * Build the project by running `mvn clean package` inside Account_Management Module
 * Once successfully built, run the service by using the following command:
 ```
-java -jar  Account_Management/target/account-1.0.0.jar
+java -jar  target/account-1.0.0.jar
 ```
 
 ## REST APIs Endpoints
