@@ -11,7 +11,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -33,6 +32,8 @@ import com.example.account.repository.UserRepository;
 @SpringBootTest
 class UserResourceIT {
 
+	private static final Long DEFAULT_ID = 1L;
+
 	private static final String DEFAULT_FIRSTNAME = "Mahdi";
 	private static final String UPDATED_FIRSTNAME = "Ali";
 
@@ -42,8 +43,8 @@ class UserResourceIT {
 	private static final String DEFAULT_EMAIL = "mahdi.dahmardah@gmail.com";
 	private static final String UPDATED_EMAIL = "ali.ahmadi@gmail.com";
 
-	private static final LocalDate DEFAULT_DOB = LocalDate.ofEpochDay(0L);
-	private static final LocalDate UPDATED_DOB = LocalDate.now(ZoneId.systemDefault());
+	private static final LocalDate DEFAULT_DOB = LocalDate.of(1990, 2, 20);
+	private static final LocalDate UPDATED_DOB = LocalDate.of(2000, 4, 12);
 
 	private static final String ENTITY_API_URL = "/api/users";
 	private static final String ENTITY_API_URL_ID = ENTITY_API_URL + "/{id}";
@@ -109,6 +110,48 @@ class UserResourceIT {
 
 	@Test
 	@Transactional
+	void createUserWithExistingId() throws Exception {
+		int databaseSizeBeforeCreate = userRepository.findAll().size();
+
+		User user = new User();
+		user.setId(DEFAULT_ID);
+		user.setFirstName(DEFAULT_FIRSTNAME);
+		user.setLastName(DEFAULT_LASTNAME);
+		user.setEmail(DEFAULT_EMAIL);
+		user.setDob(DEFAULT_DOB);
+
+		// An entity with an existing ID cannot be created, so this API call must fail
+		restUserMockMvc.perform(post(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON)
+				.content(TestUtil.convertObjectToJsonBytes(user))).andExpect(status().isBadRequest());
+
+		// Validate the User in the database
+		assertPersistedUsers(users -> assertThat(users).hasSize(databaseSizeBeforeCreate));
+	}
+
+	@Test
+	@Transactional
+	void createUserWithExistingEmail() throws Exception {
+		// Initialize the database
+		userRepository.saveAndFlush(user);
+		int databaseSizeBeforeCreate = userRepository.findAll().size();
+
+		User user = new User();
+
+		user.setFirstName(DEFAULT_FIRSTNAME);
+		user.setLastName(DEFAULT_LASTNAME);
+		user.setEmail(DEFAULT_EMAIL); // this email should already be used
+		user.setDob(DEFAULT_DOB);
+
+		// Create the User
+		restUserMockMvc.perform(post(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON)
+				.content(TestUtil.convertObjectToJsonBytes(user))).andExpect(status().isBadRequest());
+
+		// Validate the User in the database
+		assertPersistedUsers(users -> assertThat(users).hasSize(databaseSizeBeforeCreate));
+	}
+
+	@Test
+	@Transactional
 	void getAllUsers() throws Exception {
 		// Initialize the database
 		userRepository.saveAndFlush(user);
@@ -139,6 +182,12 @@ class UserResourceIT {
 				.andExpect(jsonPath("$.email").value(DEFAULT_EMAIL))
 				.andExpect(jsonPath("$.dob").value(DEFAULT_DOB.toString()));
 
+	}
+
+	@Test
+	@Transactional
+	void getNonExistingUser() throws Exception {
+		restUserMockMvc.perform(get(ENTITY_API_URL + "/0")).andExpect(status().isNotFound());
 	}
 
 	@Test
@@ -175,10 +224,37 @@ class UserResourceIT {
 
 	@Test
 	@Transactional
+	void updateUserExistingEmail() throws Exception {
+		// Initialize the database with 2 users
+		userRepository.saveAndFlush(user);
+
+		User anotherUser = new User();
+		anotherUser.setEmail("ahmad.mahmud@test.com");
+		anotherUser.setFirstName("Ahmad");
+		anotherUser.setLastName("Mahmud");
+		anotherUser.setDob(LocalDate.of(1950, 4, 16));
+		userRepository.saveAndFlush(anotherUser);
+
+		// Update the user
+		User updatedUser = userRepository.findById(user.getId()).get();
+
+		User user = new User();
+		user.setId(updatedUser.getId());
+		user.setFirstName(updatedUser.getFirstName());
+		user.setLastName(updatedUser.getLastName());
+		user.setEmail("ahmad.mahmud@test.com"); // this email should already be used by anotherUser
+		user.setDob(DEFAULT_DOB);
+
+		restUserMockMvc.perform(put(ENTITY_API_URL).contentType(MediaType.APPLICATION_JSON)
+				.content(TestUtil.convertObjectToJsonBytes(user))).andExpect(status().isBadRequest());
+	}
+
+	@Test
+	@Transactional
 	void deleteUser() throws Exception {
 		// Initialize the database
 		userRepository.saveAndFlush(user);
-		
+
 		int databaseSizeBeforeDelete = userRepository.findAll().size();
 
 		// Delete the user

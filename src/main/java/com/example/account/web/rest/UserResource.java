@@ -3,6 +3,9 @@ package com.example.account.web.rest;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
+import java.util.Optional;
+
+import javax.validation.Valid;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +20,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.example.account.domain.User;
 import com.example.account.repository.UserRepository;
+import com.example.account.web.rest.errors.BadRequestAlertException;
+import com.example.account.web.rest.errors.EmailAlreadyUsedException;
 import com.example.account.web.util.ResponseUtil;
 
 import lombok.extern.slf4j.Slf4j;
@@ -30,13 +35,19 @@ public class UserResource {
 	private UserRepository userRepository;
 
 	@PostMapping("/users")
-	public ResponseEntity<User> createUser(@RequestBody User user) throws URISyntaxException {
+	public ResponseEntity<User> createUser(@Valid @RequestBody User user) throws URISyntaxException {
 
 		log.debug("REST request to save User : {}", user);
 
-		User newUser = userRepository.save(user);
-
-		return ResponseEntity.created(new URI("/api/users/" + newUser.getId())).body(newUser);
+		if (user.getId() != null) {
+			throw new BadRequestAlertException("A new user cannot already have an ID");
+			// Lower case the user login before comparing with database
+		} else if (userRepository.findOneByEmailIgnoreCase(user.getEmail()).isPresent()) {
+			throw new EmailAlreadyUsedException();
+		} else {
+			User newUser = userRepository.save(user);
+			return ResponseEntity.created(new URI("/api/users/" + newUser.getId())).body(newUser);
+		}
 
 	}
 
@@ -54,8 +65,14 @@ public class UserResource {
 	}
 
 	@PutMapping("/users")
-	public ResponseEntity<User> updateUser(@RequestBody User user) {
+	public ResponseEntity<User> updateUser(@Valid @RequestBody User user) {
 		log.debug("REST request to update User : {}", user);
+
+		Optional<User> existingUser = userRepository.findOneByEmailIgnoreCase(user.getEmail());
+
+		if (existingUser.isPresent() && (!existingUser.get().getId().equals(user.getId()))) {
+			throw new EmailAlreadyUsedException();
+		}
 
 		User result = userRepository.save(user);
 
